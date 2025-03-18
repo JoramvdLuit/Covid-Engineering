@@ -154,15 +154,19 @@ def sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, paramete
     plt.show()
 
 
+def main():
+    #Part 1
+    plot_figure(df_daywise)
 
-plot_figure(df_daywise)
-
-start_date = "2020-03-01"
-end_date = "2020-05-01"
-plot_figure_dates(df_daywise, start_date, end_date)
+    start_date = "2020-03-01"
+    end_date = "2020-05-01"
+    plot_figure_dates(df_daywise, start_date, end_date)
 
 
-parameter_sets = [params1, params2, params3]
-for i, params in enumerate(parameter_sets, start=1):
-    sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3],
-                            I0, R0, S0, D0, N, i)
+    parameter_sets = [params1, params2, params3]
+    for i, params in enumerate(parameter_sets, start=1):
+        sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3],
+                                I0, R0, S0, D0, N, i)
+
+
+main()
