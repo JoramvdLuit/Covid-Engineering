@@ -436,7 +436,12 @@ def process_country_complete(country):
         print(f"No valid rows for {country}")
         return df
     
-    
+     # Special handling:
+    # If Confirmed equals Active and both Deaths and Recovered are missing,
+    # then set Deaths and Recovered to 0.
+    condition = (df['Confirmed'] == df['Active']) & (df['Deaths'].isna()) & (df['Recovered'].isna())
+    df.loc[condition, ['Deaths', 'Recovered']] = 0
+
     # First, for rows with exactly one missing value, fill using the invariant.
     df = df.apply(fill_single_missing, axis=1)
     
