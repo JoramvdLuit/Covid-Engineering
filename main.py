@@ -5,7 +5,9 @@ import sqlite3
 from datetime import datetime
 import statsmodels.api as sm
 import plotly.express as px
-import plotly.express as px
+import streamlit as st
+
+st.set_page_config(page_title="COVID-19 Dashboard", layout="wide", initial_sidebar_state="expanded")
 
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
                                         #Part 1
@@ -99,7 +101,7 @@ response = Delta_I + (mu_hat3 + gamma_hat3) * I_vals_beta
 beta_hat3 = np.sum(predictor * response) / np.sum(predictor**2) #beta = 0.077
 params3 = [alpha_hat3, beta_hat3, gamma_hat3, mu_hat3]
 
-#only used for the dashboard
+
 def print_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, parameterset):
     S = [S0]
     I = [I0]
@@ -354,7 +356,6 @@ def Top_5_US_Counties():
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
                                         #Part 4
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
 def manual_interpolate_column(series):
     # Manually interpolate a pandas Series.
     s = series.copy()
@@ -419,14 +420,12 @@ def process_country_complete(country):
     ].copy()
     df.sort_values("Date", inplace=True)
 
-    # removes duplicate values
     df = df.groupby('Date', as_index=False).agg({
     'Confirmed': 'max',
     'Active': 'max',
     'Deaths': 'max',
     'Recovered': 'max'
     })
-
 
     # Drop initial rows where all four key columns are missing.
     valid = ~df[['Confirmed', 'Active', 'Deaths', 'Recovered']].isna().all(axis=1)
@@ -437,8 +436,7 @@ def process_country_complete(country):
         print(f"No valid rows for {country}")
         return df
     
-    
-    # Special handling:
+     # Special handling:
     # If Confirmed equals Active and both Deaths and Recovered are missing,
     # then set Deaths and Recovered to 0.
     condition = (df['Confirmed'] == df['Active']) & (df['Deaths'].isna()) & (df['Recovered'].isna())
@@ -462,49 +460,49 @@ def process_country_complete(country):
     # Drop any rows still containing missing values.
     df_complete = df.dropna(subset=['Confirmed', 'Active', 'Deaths', 'Recovered'])
 
-
     # Print the final filled rows.
     print("Processed DataFrame for", country)
     print(df[['Date', 'Confirmed', 'Active', 'Deaths', 'Recovered']])
-    return df
+    return df_complete
 
-def plot_figures_country_complete(country):
+def plot_figures_country_complete(country, start_date, end_date):
     df = process_country_complete(country).copy()
+
+    interval = (df["Date"] >= pd.to_datetime(start_date)) & (df["Date"] <= pd.to_datetime(end_date))
+    df_filtered = df.loc[interval].copy()
+
+    df_filtered['Confirmed_change'] = df_filtered['Confirmed'].diff()
+    df_filtered['Active_change'] = df_filtered['Active'].diff()
+    df_filtered['Deaths_change'] = df_filtered['Deaths'].diff()
+    df_filtered['Recovered_change'] = df_filtered['Recovered'].diff()
     
-    df['Confirmed_change'] = df['Confirmed'].diff()
-    df['Active_change'] = df['Active'].diff()
-    df['Deaths_change'] = df['Deaths'].diff()
-    df['Recovered_change'] = df['Recovered'].diff()
+    fig, axes = plt.subplots(4, 1, figsize=(10, 16))
     
-    plt.figure(figsize=(10, 16))
-    
-    plt.subplot(4, 1, 1)
-    plt.plot(df['Date'], df['Confirmed_change'], label="Daily Change in Confirmed", color='purple')
-    plt.xlabel("Date")
-    plt.ylabel("Confirmed Change")
-    plt.legend()
-    
-    plt.subplot(4, 1, 2)
-    plt.plot(df['Date'], df['Active_change'], label="Daily Change in Active", color='blue')
-    plt.xlabel("Date")
-    plt.ylabel("Active Change")
-    plt.legend()
-    
-    plt.subplot(4, 1, 3)
-    plt.plot(df['Date'], df['Deaths_change'], label="Daily Change in Deaths", color='red')
-    plt.xlabel("Date")
-    plt.ylabel("Deaths Change")
-    plt.legend()
-    
-    plt.subplot(4, 1, 4)
-    plt.plot(df['Date'], df['Recovered_change'], label="Daily Change in Recovered", color='green')
-    plt.xlabel("Date")
-    plt.ylabel("Recovered Change")
-    plt.legend()
-    
-    plt.xticks(rotation=45)
+    axes[0].plot(df_filtered["Date"], df_filtered["Confirmed_change"], label="Daily Change in Confirmed", color="purple")
+    axes[0].set_xlabel("Date")
+    axes[0].set_ylabel("Confirmed Change")
+    axes[0].legend()
     plt.tight_layout()
-    plt.show()
+
+    axes[1].plot(df_filtered["Date"], df_filtered["Active_change"], label="Daily Change in Active", color="blue")
+    axes[1].set_xlabel("Date")
+    axes[1].set_ylabel("Active Change")
+    axes[1].legend()
+    plt.tight_layout()
+
+    axes[2].plot(df_filtered["Date"], df_filtered["Deaths_change"], label="Daily Change in Deaths", color="red")
+    axes[2].set_xlabel("Date")
+    axes[2].set_ylabel("Deaths Change")
+    axes[2].legend()
+    plt.tight_layout()
+
+    axes[3].plot(df_filtered["Date"], df_filtered["Recovered_change"], label="Daily Change in Recovered", color="green")
+    axes[3].set_xlabel("Date")
+    axes[3].set_ylabel("Recovered Change")
+    axes[3].legend()
+    plt.tight_layout()
+    
+    return fig
 
 def estimates_country_complete(country):
     df = process_country_complete(country).copy()
@@ -535,7 +533,7 @@ def plot_figures_counties_complete(county):
     county_df['Date'] = pd.to_datetime(county_df['Date'])
     county_df.sort_values("Date", inplace=True)
     
-    plt.figure(figsize=(10, 16))
+    fig = plt.figure(figsize=(10, 16))
     
     plt.subplot(2, 1, 1)
     plt.plot(county_df['Date'], county_df['Confirmed'], label="Daily Change in Confirmed", color='purple')
@@ -551,25 +549,23 @@ def plot_figures_counties_complete(county):
     
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()
-
+    return fig
 
 def main():
-    plot_figure(df_daywise)
-
+    #Part1
+    fig = plot_figure(df_daywise)
+    plt.show()
     start_date = "2020-03-01"
     end_date = "2020-05-01"
     plot_figure_dates(df_daywise, start_date, end_date)
+    plt.show()
 
     parameter_sets = [params1, params2, params3]
     for i, params in enumerate(parameter_sets, start=1):
-        graph_sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3],
-                                I0, R0, S0, D0, N, i)
-        
-
+        graph_sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3], I0, R0, S0, D0, N, i)
+        plt.show()
+    
     #Part3
-    start_date = "2020-01-22"
-    end_date = "2020-07-27"
     plot_totals_for_country("Netherlands", start_date, end_date)
     plt.show()
 
@@ -582,9 +578,106 @@ def main():
     Top_5_US_Counties()
     plt.show()
 
-
-    #part 4
-    plot_figures_country_complete("Netherlands")
+    #Part 4
+    plot_figures_country_complete("Netherlands", start_date, end_date)
     plot_figures_counties_complete("Hudson")
+    #plt.show()
 
 main()
+
+#Part 5
+# Streamlit Dashboard Configuration
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Overview", "SIR Model", "Country Analysis", "Global Insights"])
+
+start_date, end_date = st.sidebar.date_input("Select Date Range", [df_daywise["Date"].min(), df_daywise["Date"].max()])
+selected_country = st.sidebar.selectbox("Select a country", worldometer_df["Country.Region"].unique())
+
+complete_csv_country = "US" if selected_country == "USA" else selected_country
+
+if page == "Overview":
+    st.title("COVID-19 Pandemic Overview")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Global Statistics")
+        total_cases = worldometer_df["TotalCases"].sum()
+        total_deaths = worldometer_df["TotalDeaths"].sum()
+        total_recovered = worldometer_df["TotalRecovered"].sum()
+        st.metric("Total Cases", f"{total_cases:,}")
+        st.metric("Total Deaths", f"{total_deaths:,}")
+        st.metric("Total Recovered", f"{total_recovered:,}")
+    with col2:
+        st.subheader("Global Insights")
+        fig = plot_figure_dates(df_daywise, start_date, end_date)
+        st.pyplot(fig)
+
+elif page == "SIR Model":
+    st.title("SIR Model for COVID-19 Spread (Country-Specific)")
+
+    st.markdown("""
+    The SIR model is used to predict the spread of infectious diseases by categorizing people into:
+    - **S (Susceptible):** People who can still get infected.
+    - **I (Infected):** People who are currently infected.
+    - **R (Recovered):** People who have recovered and gained immunity.
+    - **D (Deceased):** People who have died from the disease.
+
+    The model is influenced by four parameters:
+    - **α (alpha):** Rate at which recovered people lose immunity and become susceptible again.
+    - **β (beta):** Infection rate (how easily the disease spreads).
+    - **γ (gamma):** Recovery rate (how quickly people recover).
+    - **μ (mu):** Death rate due to infection.
+    """)
+
+    # Ensure "USA" maps to "US" for complete.csv
+    complete_csv_country = "US" if selected_country == "USA" else selected_country
+
+    # Estimate country-specific parameters
+    params = estimate_parameters_by_country(selected_country)
+    alpha_t, beta_t, gamma, mu_t, S_t = params
+
+    # Compute R₀ trajectory
+    R0_traj_df = R0_trajectory_by_country(selected_country)
+    R0_estimate = beta_t / gamma
+
+    # Display parameters
+    st.subheader(f"SIR Model for {selected_country}")
+
+    # Display estimated R₀ value
+    st.metric("Estimated Basic Reproduction Number (R0)", f"{R0_estimate:.2f}")
+
+    # Plot R0 trajectory
+    st.subheader(f"R₀ Trajectory for {selected_country}")
+    fig_R0 = plt.figure(figsize=(10, 5))
+    plt.plot(R0_traj_df["Date"], R0_traj_df["R0"], label="R₀ Estimate", color="blue")
+    plt.xlabel("Date")
+    plt.ylabel("Estimated R₀")
+    plt.title(f"R₀ Trajectory for {selected_country}")
+    plt.legend()
+    plt.tight_layout()
+    st.pyplot(fig_R0)
+        
+elif page == "Country Analysis":
+    st.title(f"COVID-19 Analysis for {selected_country}")
+    col1, col2 = st.columns(2)
+    with col1:
+        fig = plot_totals_for_country(selected_country, start_date, end_date)
+        st.pyplot(fig)
+    with col2:
+        fig = plot_figures_country_complete(complete_csv_country, start_date, end_date)
+        st.pyplot(fig)
+
+elif page == "Global Insights":
+    st.title("Global Insights & Visualizations")
+
+    st.subheader("Total Cases Per Country")
+    fig = px.choropleth(
+        worldometer_df, locations="Country.Region", locationmode="country names",
+        color="TotalCases", hover_name="Country.Region", scope="world",
+        title="Total Cases Across the World", color_continuous_scale="Reds"
+    )
+    st.plotly_chart(fig)
+
+    st.subheader("Continental Death Rates")
+    fig_death_rate = Estimated_Death_Rate_by_Continent()
+    st.pyplot(fig_death_rate)
