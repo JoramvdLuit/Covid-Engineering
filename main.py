@@ -18,7 +18,7 @@ df_daywise = pd.read_csv("day_wise.csv", parse_dates=["Date"])
 def plot_figure(df):
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
     
-    axes[0].plot(df["Date"], df["New cases"], color="blue")
+    axes[0].plot(df["Date"], df["New.cases"], color="blue")
     axes[0].set_title("New Cases Over Time")
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("New Cases")
