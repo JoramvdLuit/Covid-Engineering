@@ -610,9 +610,6 @@ elif page == "SIR Model":
     # Display parameters
     st.subheader(f"SIR Model for {selected_country}")
 
-    # Display estimated R₀ value
-    st.metric("Estimated Basic Reproduction Number (R0)", f"{R0_estimate:.2f}")
-
     # Plot R0 trajectory
     st.subheader(f"R₀ Trajectory for {selected_country}")
     fig_R0 = plt.figure(figsize=(10, 5))
