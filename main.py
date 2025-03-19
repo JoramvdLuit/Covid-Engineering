@@ -551,39 +551,6 @@ def plot_figures_counties_complete(county):
     plt.tight_layout()
     return fig
 
-def main():
-    #Part1
-    fig = plot_figure(df_daywise)
-    plt.show()
-    start_date = "2020-03-01"
-    end_date = "2020-05-01"
-    plot_figure_dates(df_daywise, start_date, end_date)
-    plt.show()
-
-    parameter_sets = [params1, params2, params3]
-    for i, params in enumerate(parameter_sets, start=1):
-        graph_sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3], I0, R0, S0, D0, N, i)
-        plt.show()
-    
-    #Part3
-    plot_totals_for_country("Netherlands", start_date, end_date)
-    plt.show()
-
-    print(estimate_parameters_by_country("Netherlands"))
-    R0_traj_df = R0_trajectory_by_country("Netherlands")
-    
-    Active_Cases_fraction_Europe().show()
-    Estimated_Death_Rate_by_Continent()
-    plt.show()
-    Top_5_US_Counties()
-    plt.show()
-
-    #Part 4
-    plot_figures_country_complete("Netherlands", start_date, end_date)
-    plot_figures_counties_complete("Hudson")
-    #plt.show()
-
-main()
 
 #Part 5
 # Streamlit Dashboard Configuration
@@ -681,3 +648,41 @@ elif page == "Global Insights":
     st.subheader("Continental Death Rates")
     fig_death_rate = Estimated_Death_Rate_by_Continent()
     st.pyplot(fig_death_rate)
+
+
+
+def main():
+    plot_figure(df_daywise)
+
+    start_date = "2020-03-01"
+    end_date = "2020-05-01"
+    plot_figure_dates(df_daywise, start_date, end_date)
+
+    parameter_sets = [params1, params2, params3]
+    for i, params in enumerate(parameter_sets, start=1):
+        graph_sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3],
+                                I0, R0, S0, D0, N, i)
+        
+
+    #Part3
+    start_date = "2020-01-22"
+    end_date = "2020-07-27"
+    plot_totals_for_country("Netherlands", start_date, end_date)
+    plt.show()
+
+    print(estimate_parameters_by_country("Netherlands"))
+    R0_traj_df = R0_trajectory_by_country("Netherlands")
+    
+    Active_Cases_fraction_Europe().show()
+    Estimated_Death_Rate_by_Continent()
+    plt.show()
+    Top_5_US_Counties()
+    plt.show()
+
+    
+    #Part 4
+    plot_figures_country_complete("Netherlands", start_date, end_date)
+    plot_figures_counties_complete("Hudson")
+    #plt.show()
+
+main()
