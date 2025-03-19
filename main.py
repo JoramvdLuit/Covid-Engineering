@@ -594,6 +594,8 @@ elif page == "SIR Model":
     - **β (beta):** Infection rate (how easily the disease spreads).
     - **γ (gamma):** Recovery rate (how quickly people recover).
     - **μ (mu):** Death rate due to infection.
+
+    We can then use the model to estimate the basic reproduction number R0 given by β(t) / γ
     """)
 
     # Ensure "USA" maps to "US" for complete.csv
