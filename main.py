@@ -6,6 +6,7 @@ from datetime import datetime
 import statsmodels.api as sm
 import plotly.express as px
 import streamlit as st
+import sys
 
 st.set_page_config(page_title="COVID-19 Dashboard", layout="wide", initial_sidebar_state="expanded")
 
@@ -19,19 +20,19 @@ def plot_figure(df):
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
     
     axes[0].plot(df["Date"], df["New.cases"], color="blue")
-    axes[0].set_title("New Cases Over Time")
+    axes[0].set_title("New Cases Over Time using day_wise data")
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("New Cases")
     plt.tight_layout(pad=3.0)
 
     axes[1].plot(df["Date"], df["Deaths"], color="red")
-    axes[1].set_title("Deaths Over Time")
+    axes[1].set_title("Deaths Over Time using day_wise data")
     axes[1].set_xlabel("Date")
     axes[1].set_ylabel("Deaths")
     plt.tight_layout(pad=3.0)
 
     axes[2].plot(df["Date"], df["Recovered"], color="green")
-    axes[2].set_title("Recovered Over Time")
+    axes[2].set_title("Recovered Over Time using day_wise data")
     axes[2].set_xlabel("Date")
     axes[2].set_ylabel("Recovered")
     plt.tight_layout(pad=3.0)
@@ -101,8 +102,9 @@ response = Delta_I + (mu_hat3 + gamma_hat3) * I_vals_beta
 beta_hat3 = np.sum(predictor * response) / np.sum(predictor**2) #beta = 0.077
 params3 = [alpha_hat3, beta_hat3, gamma_hat3, mu_hat3]
 
+parameter_sets = [params1, params2, params3]
 
-def print_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, parameterset):
+def sir_model_MSE_values(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N):
     S = [S0]
     I = [I0]
     R = [R0]
@@ -124,14 +126,13 @@ def print_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, pa
         I.append(It + delta_I)
         R.append(Rt + delta_R)
         D.append(Dt + delta_D)
-
-
-        S_sim = np.array(S)
-
+    
+    S_sim = np.array(S)
     I_sim = np.array(I)
     R_sim = np.array(R)
     D_sim = np.array(D)
     
+    # Actual values (assuming your actual DataFrame df has cumulative counts)
     S_real = np.array(N - df['Active'] - df['Recovered'] - df['Deaths'])
     I_real = np.array(df['Active'])
     R_real = np.array(df['Recovered'])
@@ -141,14 +142,36 @@ def print_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, pa
     mse_I = np.mean((I_sim - I_real) ** 2)
     mse_R = np.mean((R_sim - R_real) ** 2)
     mse_D = np.mean((D_sim - D_real) ** 2)
-
-    print("Estimate for reproduction number R0: ",beta/gamma )
     
-    print("Mean Squared Errors for parameterset ", parameterset, ", offset by 1/10000000000000:")
-    print("S: ", mse_S / 10000000000000)
-    print("I: ", mse_I / 10000000000000)
-    print("R: ", mse_R / 10000000000000)
-    print("D: ", mse_D / 10000000000000)
+    return mse_S, mse_I, mse_R, mse_D
+
+def plot_mse_comparison(df, parameter_sets, I0, R0, S0, D0, N, scale=1e13):
+    """
+    For each parameter set in parameter_sets (list of [alpha, beta, gamma, mu]),
+    compute the MSE values (for S, I, R, D) using original df and the given initial conditions.
+    Then create a figure with one barplot per parameter set.
+    """
+    compartments = ['S', 'I', 'R', 'D']
+    mse_results = []
+    for i, params in enumerate(parameter_sets, start=1):
+        alpha_val = params[0]
+        beta_val = params[1]
+        gamma_val = params[2]
+        mu_val = params[3]
+        mse_S, mse_I, mse_R, mse_D = sir_model_MSE_values(df, alpha_val, beta_val, gamma_val, mu_val, I0, R0, S0, D0, N)
+        mse_results.append([mse_S/scale, mse_I/scale, mse_R/scale, mse_D/scale])
+    
+    # Create a figure with one subplot per parameter set
+    fig, axes = plt.subplots(1, len(parameter_sets), figsize=(5*len(parameter_sets), 5))
+    if len(parameter_sets) == 1:
+        axes = [axes]
+    for i, ax in enumerate(axes):
+        ax.bar(compartments, mse_results[i], color=['blue', 'orange', 'green', 'red'])
+        ax.set_title(f"Parameter Set {i+1} MSE")
+        ax.set_ylim(0, 3.5)
+        ax.set_ylabel("MSE (scaled)")
+    fig.tight_layout()
+    return fig
 
 def graph_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, parameterset):
     S = [S0]
@@ -157,7 +180,6 @@ def graph_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, pa
     D = [D0]
     time = df['Date'].tolist()
 
-      
     for t in range(len(time) - 1):
         St = S[-1]
         It = I[-1]
@@ -174,8 +196,6 @@ def graph_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, pa
         R.append(Rt + delta_R)
         D.append(Dt + delta_D)
 
-
-        S_sim = np.array(S)
         
     fig = plt.figure(figsize=(10, 6))
     plt.plot(time, S, label="Susceptible")
@@ -190,10 +210,12 @@ def graph_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, pa
     plt.tight_layout()
     return fig
 
+
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
                                         #Part 3
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
+# Loading the database
 conn = sqlite3.connect('covid_database.db')
 cursor = conn.cursor()
 cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -245,19 +267,22 @@ def plot_totals_for_country(country, start_date, end_date):
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("Active Fraction (Total)")
     axes[0].legend()
-    plt.tight_layout()
+    axes[0].set_title(f"Active Fraction Over Time for {country}")
+    plt.tight_layout(pad = 5.0)
 
     axes[1].plot(df_filtered['Date'], df_filtered['Deaths_fraction'], label=f"Cumulative Deaths / Population, {country}", color='red')
     axes[1].set_xlabel("Date")
     axes[1].set_ylabel("Deaths Fraction (Total)")
     axes[1].legend()
-    plt.tight_layout()
+    axes[1].set_title(f"Deaths Fraction Over Time for {country}")
+    plt.tight_layout(pad = 5.0)
 
     axes[2].plot(df_filtered['Date'], df_filtered['Recovered_fraction'], label=f"Cumulative Recovered / Population, {country}", color='green')
     axes[2].set_xlabel("Date")
     axes[2].set_ylabel("Recovered Fraction (Total)")
     axes[2].legend()
-    plt.tight_layout()
+    axes[2].set_title(f"Recovered Fraction Over Time for {country}")
+    plt.tight_layout(pad = 5.0)
     
     return fig
 
@@ -356,6 +381,8 @@ def Top_5_US_Counties():
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
                                         #Part 4
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+# Use interpolation to fill in missing values
 def manual_interpolate_column(series):
     # Manually interpolate a pandas Series.
     s = series.copy()
@@ -412,6 +439,7 @@ def fill_row_manual(row, df_interp):
             row = fill_single_missing(row)
     return row
 
+# function to handle the raw data processing
 def process_country_complete(country):
     complete_df = pd.read_csv("complete.csv", parse_dates=["Date"])
     
@@ -432,6 +460,7 @@ def process_country_complete(country):
     if valid.any():
         first_valid = df.index[valid][0]
         df = df.loc[first_valid:]
+        start_date = df.iloc[0]["Date"]
     else:
         print(f"No valid rows for {country}")
         return df
@@ -460,50 +489,44 @@ def process_country_complete(country):
     # Drop any rows still containing missing values.
     df_complete = df.dropna(subset=['Confirmed', 'Active', 'Deaths', 'Recovered'])
 
-    # Print the final filled rows.
-    print("Processed DataFrame for", country)
-    print(df[['Date', 'Confirmed', 'Active', 'Deaths', 'Recovered']])
     return df_complete
 
+# Plots totals
 def plot_figures_country_complete(country, start_date, end_date):
     df = process_country_complete(country).copy()
 
     interval = (df["Date"] >= pd.to_datetime(start_date)) & (df["Date"] <= pd.to_datetime(end_date))
     df_filtered = df.loc[interval].copy()
-
-    df_filtered['Confirmed_change'] = df_filtered['Confirmed'].diff()
-    df_filtered['Active_change'] = df_filtered['Active'].diff()
-    df_filtered['Deaths_change'] = df_filtered['Deaths'].diff()
-    df_filtered['Recovered_change'] = df_filtered['Recovered'].diff()
     
     fig, axes = plt.subplots(4, 1, figsize=(10, 16))
     
-    axes[0].plot(df_filtered["Date"], df_filtered["Confirmed_change"], label="Daily Change in Confirmed", color="purple")
+    axes[0].plot(df_filtered["Date"], df_filtered["Confirmed"], color="purple")
     axes[0].set_xlabel("Date")
-    axes[0].set_ylabel("Confirmed Change")
-    axes[0].legend()
-    plt.tight_layout()
-
-    axes[1].plot(df_filtered["Date"], df_filtered["Active_change"], label="Daily Change in Active", color="blue")
+    axes[0].set_ylabel("Cumulative Confirmed")
+    axes[0].set_title(f"Cumulative Confirmed for {country}")
+    plt.tight_layout(pad=5.0)
+    
+    axes[1].plot(df_filtered["Date"], df_filtered["Active"], color="blue")
     axes[1].set_xlabel("Date")
-    axes[1].set_ylabel("Active Change")
-    axes[1].legend()
-    plt.tight_layout()
-
-    axes[2].plot(df_filtered["Date"], df_filtered["Deaths_change"], label="Daily Change in Deaths", color="red")
+    axes[1].set_ylabel("Cumulative Active")
+    axes[1].set_title(f"Cumulative Active for {country}")
+    plt.tight_layout(pad=5.0)
+    
+    axes[2].plot(df_filtered["Date"], df_filtered["Deaths"], color="red")
     axes[2].set_xlabel("Date")
-    axes[2].set_ylabel("Deaths Change")
-    axes[2].legend()
-    plt.tight_layout()
-
-    axes[3].plot(df_filtered["Date"], df_filtered["Recovered_change"], label="Daily Change in Recovered", color="green")
+    axes[2].set_ylabel("Cumulative Deaths")
+    axes[2].set_title(f"Cumulative Deaths for {country}")
+    plt.tight_layout(pad=5.0)
+    
+    axes[3].plot(df_filtered["Date"], df_filtered["Recovered"], color="green")
     axes[3].set_xlabel("Date")
-    axes[3].set_ylabel("Recovered Change")
-    axes[3].legend()
-    plt.tight_layout()
+    axes[3].set_ylabel("Cumulative Recovered")
+    axes[3].set_title(f"Cumulative Recovered for {country}")
+    plt.tight_layout(pad=5.0)
     
     return fig
 
+# Estimating params for the SIR model; use epsilon (eps) instead of dividing by 0
 def estimates_country_complete(country):
     df = process_country_complete(country).copy()
 
@@ -517,14 +540,13 @@ def estimates_country_complete(country):
     gamma = 1 / 4.5
 
     # Ignore the first value (index 0) which is NaN due to diff()
-    mu_t = df['Deaths_change'].iloc[1:] / df['Active'].iloc[1:]
-    alpha_t = (gamma * df['Active'].iloc[1:] - df['Recovered_change'].iloc[1:]) / df['Recovered_change'].iloc[1:]
-    beta_t = (df['Active_change'].iloc[1:] / df['Active'].iloc[1:] + mu_t + gamma) / S_t.iloc[1:]
+    eps = 0.00001
+    mu_t = df['Deaths_change'].iloc[1:] / np.maximum(df['Active'].iloc[1:], eps)
+    alpha_t = (gamma * df['Active'].iloc[1:] - df['Recovered_change'].iloc[1:]) / np.maximum(df['Recovered_change'].iloc[1:], eps)
+    beta_t = (df['Active_change'].iloc[1:] / np.maximum(df['Active'].iloc[1:], 1) + mu_t + gamma) / np.maximum(S_t.iloc[1:], eps)
     R0 = beta_t / gamma
 
     params = [alpha_t, beta_t, gamma, mu_t, S_t]
-
-
     return params
 
 def plot_figures_counties_complete(county):
@@ -536,26 +558,167 @@ def plot_figures_counties_complete(county):
     fig = plt.figure(figsize=(10, 16))
     
     plt.subplot(2, 1, 1)
-    plt.plot(county_df['Date'], county_df['Confirmed'], label="Daily Change in Confirmed", color='purple')
+    plt.plot(county_df['Date'], county_df['Confirmed'], color='purple')
     plt.xlabel("Date")
     plt.ylabel("Confirmed Change")
-    plt.legend()
+    plt.title(f"Daily Change in Confirmed Cases for {county} using complete, processed data")
     
     plt.subplot(2, 1, 2)
     plt.plot(county_df['Date'], county_df['Deaths'], label="Daily Change in Deaths", color='blue')
     plt.xlabel("Date")
     plt.ylabel("Deaths Change")
-    plt.legend()
-    
+    plt.title(f"Daily Change in Deaths for {county} using complete, processed data")
+
     plt.xticks(rotation=45)
-    plt.tight_layout()
+    plt.tight_layout(pad = 5.0)
     return fig
+
+def main():
+    # Function that plots the day-wise data
+    plot_figure(df_daywise)
+    plt.show()
+
+    start_date = "2020-03-01"
+    end_date = "2020-05-01"
+    plot_figure_dates(df_daywise, start_date, end_date)
+    plt.show()
+
+    for i, params in enumerate(parameter_sets, start=1):
+        graph_sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3],
+                                I0, R0, S0, D0, N, i)
+        plt.show()
+    plot_mse_comparison(df_daywise, parameter_sets, I0, R0, S0, D0, N)
+    plt.show()
+
+    # Part 3
+    start_date = "2020-01-22"
+    end_date = "2020-07-27"
+    plot_totals_for_country("Netherlands", start_date, end_date)
+    plt.show()
+
+    Active_Cases_fraction_Europe().show()
+    Estimated_Death_Rate_by_Continent()
+    plt.show()
+
+    Top_5_US_Counties()
+    plt.show()
+
+    # Part 4
+    start_date = "2020-01-22"
+    end_date = "2020-07-27"
+    plot_figures_country_complete("Netherlands", start_date, end_date)
+    plt.show()
+    plot_figures_counties_complete("Hudson")
+    plt.show()
+
+
+
+if "run_main" in sys.argv:
+    main()
 
 
 #Part 5
-# Streamlit Dashboard Configuration
+#Streamlit Dashboard Configuration
+
+# Test to see accuracy of SIR model
+def test_SIR_Model(param_country, sim_country):
+    """
+    Estimate time-dependent SIR parameters from param_country, then simulate the epidemic
+    for sim_country using those daily parameter estimates. Plot simulated vs. actual curves
+    for Confirmed, Active, and Deaths over time.
+    """
+    # --- Step 1: Estimate parameters for param_country ---
+    params = estimates_country_complete(param_country)
+    alpha_series = params[0]
+    beta_series  = params[1]
+    gamma    = params[2]
+    mu_series    = params[3]
+    
+    # --- Step 2: Get actual epidemic data for sim_country ---
+    actual_df = process_country_complete(sim_country)
+    actual_df = actual_df.iloc[-len(alpha_series):].reset_index(drop=True)
+    t_dates = actual_df["Date"].tolist()
+    print(t_dates[0])
+    n_steps = len(alpha_series)
+
+    # --- Step 3: Extract initial conditions from sim_country's data (first available day) ---
+    init_row = actual_df.iloc[0]
+
+    # Assume total population for simulation is taken as the first day's cumulative confirmed:
+    N_sim = worldometer_df[worldometer_df['Country.Region'] == sim_country]['Population'].iloc[0] 
+    
+    # --- Step 4: Run SIR simulation with time-dependent parameters ---
+    I_sim = [init_row["Active"]]   # Here, Active is Infected
+    R_sim = [init_row["Recovered"]]
+    D_sim = [init_row["Deaths"]]
+    S_sim = [N_sim - I_sim[0] - R_sim[0] - D_sim[0]]
+
+
+
+    # We'll simulate for (n_steps) days.
+    for t in range(0, n_steps-1):
+        alpha = alpha_series.iloc[t]
+        beta = beta_series.iloc[t]
+        mu = mu_series.iloc[t]
+
+        St = S_sim[-1]
+        It = I_sim[-1]
+        Rt = R_sim[-1]
+        Dt = D_sim[-1]
+        
+        # SIR model with deaths equations (Euler method, time step = 1 day)
+        delta_S = alpha * Rt - (beta * St * It / N_sim)
+        delta_I = beta * St * It / N_sim - (mu + gamma) * It
+        delta_R = gamma * It - alpha * Rt
+        delta_D = mu * It
+
+        S_sim.append(St + delta_S)
+        I_sim.append(It + delta_I)
+        R_sim.append(Rt + delta_R)
+        D_sim.append(Dt + delta_D)
+
+    S_sim = np.array(S_sim)
+    I_sim = np.array(I_sim)
+    R_sim = np.array(R_sim)
+    D_sim = np.array(D_sim)
+    
+    # --- Step 5: Plot simulated vs. actual data ---
+    # Compute actual confirmed from actual data (Confirmed = Active + Deaths + Recovered)
+    actual_confirmed = actual_df["Active"] + actual_df["Deaths"] + actual_df["Recovered"]
+    sim_confirmed = np.array(I_sim) + np.array(R_sim) + np.array(D_sim)
+    
+    fig, axes = plt.subplots(3, 1, figsize=(12, 18))
+    
+    # Confirmed Cases
+    axes[0].plot(t_dates, actual_confirmed, label="Actual Confirmed", marker="o", color="purple")
+    axes[0].plot(t_dates, sim_confirmed, label="Simulated Confirmed", marker="x", linestyle="--", color="orange")
+    axes[0].set_title(f"Confirmed Cases Comparison for {param_country} and {sim_country}")
+    axes[0].set_xlabel("Date")
+    axes[0].set_ylabel("Cumulative Confirmed")
+    axes[0].legend()
+    
+    # Active Cases
+    axes[1].plot(t_dates, actual_df["Active"], label="Actual Active", marker="o", color="blue")
+    axes[1].plot(t_dates, I_sim, label="Simulated Active", marker="x", linestyle="--", color="green")
+    axes[1].set_title(f"Active Cases Comparison for {param_country} and {sim_country}")
+    axes[1].set_xlabel("Date")
+    axes[1].set_ylabel("Active Cases")
+    axes[1].legend()
+    
+    # Deaths
+    axes[2].plot(t_dates, actual_df["Deaths"], label="Actual Deaths", marker="o", color="red")
+    axes[2].plot(t_dates, D_sim, label="Simulated Deaths", marker="x", linestyle="--", color="black")
+    axes[2].set_title(f"Deaths Comparison for {param_country} and {sim_country}")
+    axes[2].set_xlabel("Date")
+    axes[2].set_ylabel("Cumulative Deaths")
+    axes[2].legend()
+    
+    plt.tight_layout(pad = 5.0)
+    return fig
+
+
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Overview", "SIR Model", "Country Analysis", "Global Insights"])
+page = st.sidebar.radio("Go to", ["Overview", "SIR Model", "SIR Model Parameter Comparison", "SIR Model Fit test", "Country Analysis", "Global Insights"])
 
 start_date, end_date = st.sidebar.date_input("Select Date Range", [df_daywise["Date"].min(), df_daywise["Date"].max()])
 selected_country = st.sidebar.selectbox("Select a country", worldometer_df["Country.Region"].unique())
@@ -594,7 +757,7 @@ elif page == "SIR Model":
     - **β (beta):** Infection rate (how easily the disease spreads).
     - **γ (gamma):** Recovery rate (how quickly people recover).
     - **μ (mu):** Death rate due to infection.
-
+                
     We can then use the model to estimate the basic reproduction number R0 given by β(t) / γ
     """)
 
@@ -612,6 +775,9 @@ elif page == "SIR Model":
     # Display parameters
     st.subheader(f"SIR Model for {selected_country}")
 
+    # Display estimated R₀ value
+   # st.metric("Estimated Basic Reproduction Number (R0)", f"{R0_estimate:.2f}")
+
     # Plot R0 trajectory
     st.subheader(f"R₀ Trajectory for {selected_country}")
     fig_R0 = plt.figure(figsize=(10, 5))
@@ -622,7 +788,40 @@ elif page == "SIR Model":
     plt.legend()
     plt.tight_layout()
     st.pyplot(fig_R0)
-        
+
+elif page == "SIR Model Parameter Comparison":
+    st.title("SIR Model Parameter Set Comparison")
+    st.markdown("""
+    In this section, we compare the performance of three different parameter sets by computing the
+    Mean Squared Error (MSE) of the simulated epidemic curves (for Susceptible, Infected/Active, Recovered and Deaths) against the actual data.
+    The barplots below show the scaled MSE values for each parameter set.
+                
+    - **Parameterset 1: Using goverment data (CDC) for the parameters
+    - **Parameterset 2: Calculating the parameters from the data and taking a mean to avoid overfitting
+    - **Parameterset 1: Using advanced techniques such as linear regression to compute parameters 
+                
+    """)
+
+    for i, params in enumerate(parameter_sets, start=1):
+        fig_sim = graph_sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3],
+                                             I0, R0, S0, D0, N, i)
+        st.pyplot(fig_sim)
+    
+    fig_mse = plot_mse_comparison(df_daywise, parameter_sets, I0, R0, S0, D0, N)
+    st.pyplot(fig_mse)
+
+elif page == "SIR Model Fit test":
+    st.title("SIR Model Fit Test")
+    st.markdown("""
+    This section estimates SIR model parameters from one country (e.g., the Netherlands) and then uses those parameters 
+    to simulate the epidemic for another country (e.g., Belgium) using the starting values from that country.
+    The simulation outputs the modeled cumulative confirmed, active, and death cases. If the computed results are similar to the actual results,
+    the SIR model proves a fitting model. 
+    """)
+    # Adjust the country names as needed; here we use "Netherlands" for estimation and "Belgium" for simulation.
+    fig_sim = test_SIR_Model("Netherlands", "Belgium")
+    st.pyplot(fig_sim)
+
 elif page == "Country Analysis":
     st.title(f"COVID-19 Analysis for {selected_country}")
     col1, col2 = st.columns(2)
@@ -650,38 +849,4 @@ elif page == "Global Insights":
 
 
 
-def main():
-    plot_figure(df_daywise)
 
-    start_date = "2020-03-01"
-    end_date = "2020-05-01"
-    plot_figure_dates(df_daywise, start_date, end_date)
-
-    parameter_sets = [params1, params2, params3]
-    for i, params in enumerate(parameter_sets, start=1):
-        graph_sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3],
-                                I0, R0, S0, D0, N, i)
-        
-
-    #Part3
-    start_date = "2020-01-22"
-    end_date = "2020-07-27"
-    plot_totals_for_country("Netherlands", start_date, end_date)
-    plt.show()
-
-    print(estimate_parameters_by_country("Netherlands"))
-    R0_traj_df = R0_trajectory_by_country("Netherlands")
-    
-    Active_Cases_fraction_Europe().show()
-    Estimated_Death_Rate_by_Continent()
-    plt.show()
-    Top_5_US_Counties()
-    plt.show()
-
-    
-    #Part 4
-    plot_figures_country_complete("Netherlands", start_date, end_date)
-    plot_figures_counties_complete("Hudson")
-    #plt.show()
-
-main()
