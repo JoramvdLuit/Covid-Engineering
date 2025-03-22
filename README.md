@@ -26,3 +26,13 @@ o	Provides functions to filter the time range for visualization.
 •	User Interaction:
 o	Users can call functions like plot_figure_dates(df, start_date, end_date) to visualize the data within a specific date range.
 o	The SIR model simulation functions enable users to plot Covid data by simulating the number of deaths, infected confirmed etc using parameters sets.
+
+Part 4: Data Wrangling
+•⁠  ⁠What It Does:
+o	Processes an additional dataset (complete.csv) that contains detailed daily counts per country.
+o	Addresses missing values by applying manual interpolation and invariant-based corrections.
+o	Groups and aggregates data to ensure that cumulative counts are accurate.
+•⁠  ⁠User Interaction:
+o	Users can choose a country to perform operations on
+o	The function plot_figures_country_complete(country, start_date, end_date) now provides plots of cumulative totals (Confirmed, Active, Deaths, and Recovered) based on the cleaned data.
+o	Additional functions support detailed analysis at the county level (especially for the USA) via plot_figures_counties_complete(county).
