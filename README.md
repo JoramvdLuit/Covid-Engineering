@@ -7,11 +7,11 @@ This repository provides a comprehensive analysis and interactive dashboard to s
 Table of Contents
 •	Project Overview
 •	Project Parts and User Interaction 
-o	Part 1: Data Visualization & SIR Model Simulation
-o	Part 3: Database Interaction & Country Analysis
-o	Part 4: Data Wrangling
-o	Part 5: Interactive Dashboard
-o	Part 6: Version Control and Deployment
+  o	Part 1: Data Visualization & SIR Model Simulation
+  o	Part 3: Database Interaction & Country Analysis
+  o	Part 4: Data Wrangling
+  o	Part 5: Interactive Dashboard
+  o	Part 6: Version Control and Deployment
 •	Prerequisites
 •	How to Run the Program
 •	Project Structure
