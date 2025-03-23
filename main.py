@@ -235,7 +235,7 @@ conn.close()
 
 country_wise_df = dataframes.get('country_wise')
 day_wise_df = dataframes.get('day_wise')
-df_daywise = pd.read_csv("day_wise.csv", parse_dates=["Date"], encoding="utf-8")
+day_wise_df['Date'] = pd.to_datetime(day_wise_df['Date'])
 day_wise_df.sort_values("Date", inplace=True)
 usa_county_wise_df = dataframes.get('usa_county_wise')
 worldometer_df = dataframes.get('worldometer_data')
