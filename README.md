@@ -2,7 +2,7 @@
 Data Engineering Covid Assignment
 
 
-By Boris van Os, Marthe Welkzijn (2732375) & Joram van der Luit (2706244)
+By Boris van Os (2823548), Marthe Welkzijn (2732375) & Joram van der Luit (2706244)
 This repository provides a comprehensive analysis and interactive dashboard to study the spread of COVID-19. The project covers data visualization, parameter estimation using an extended SIR model (including a deceased state), data wrangling, and an interactive dashboard built with Streamlit.
 
 
@@ -45,8 +45,6 @@ Part 3: Database Interaction & Country Analysis
   o	Functions such as plot_totals_for_country(country, start_date, end_date) generate visualizations showing cumulative         totals relative to the country's population.
   o	The function R0_trajectory_by_country(country) creates a time series of R₀ values for the chosen country.
 
-
-
 Part 4: Data Wrangling
 •⁠  ⁠What It Does:
   o	Processes an additional dataset (complete.csv) that contains detailed daily counts per country.
@@ -57,6 +55,21 @@ Part 4: Data Wrangling
   o	The function plot_figures_country_complete(country, start_date, end_date) now provides plots of cumulative totals           (Confirmed, Active, Deaths, and Recovered) based on the cleaned data.
   o	Additional functions support detailed analysis at the county level (especially for the USA) via                               plot_figures_counties_complete(county).
 
+Part 5: Interactive Dashboard
+•⁠  ⁠What It Does:
+  o	Uses Streamlit to create an interactive dashboard with multiple navigation pages: 
+    - Overview: Displays global statistics and time-series plots of overall trends.
+    -	SIR Model: Visualizes the SIR model simulation and displays the trajectory of R₀ for a         selected country.
+    -	SIR Model Parameter Comparison: Compares different parameter sets using simulation outputs and Mean Squared Error (MSE) barplots.
+    -	SIR Model Fit Test: Compares model predictions across countries by simulating one country’s parameters on another’s data.
+    -	Country Analysis: Provides detailed analysis and plots for a specific country, including both day-wise and complete datasets.
+    -	Global Insights: Offers global visualizations, such as choropleth maps of total cases and bar plots for continental death rates.
+•⁠  ⁠User Interaction:
+  o	Users interact with the dashboard through a sidebar where they can: 
+    -	Select the desired page.
+    -	Choose the date range for analysis.
+    -	Pick a country for country-specific analysis.
+  o	Each page presents clear visualizations, metrics, and explanatory text, making it easy for scientists and analysts to understand trends and compare data.
 
 Part 6: Version Control and Deployment
 •	What It Does:
