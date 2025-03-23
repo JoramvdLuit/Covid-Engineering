@@ -237,7 +237,6 @@ country_wise_df = dataframes.get('country_wise')
 day_wise_df = dataframes.get('day_wise')
 df_daywise = pd.read_csv("day_wise.csv", parse_dates=["Date"], encoding="utf-8")
 day_wise_df.sort_values("Date", inplace=True)
-
 usa_county_wise_df = dataframes.get('usa_county_wise')
 worldometer_df = dataframes.get('worldometer_data')
 
@@ -555,7 +554,7 @@ def estimates_country_complete(country):
 def plot_figures_counties_complete(county):
     county_df = usa_county_wise_df[usa_county_wise_df['Admin2'] == county].copy()
     
-    county_df['Date'] = pd.to_datetime(county_df['Date'])
+    county_df['Date'] = pd.to_datetime(county_df['Date'], format='%m/%d/%y')
     county_df.sort_values("Date", inplace=True)
     
     fig = plt.figure(figsize=(10, 16))
@@ -564,15 +563,14 @@ def plot_figures_counties_complete(county):
     plt.plot(county_df['Date'], county_df['Confirmed'], color='purple')
     plt.xlabel("Date")
     plt.ylabel("Confirmed Change")
-    plt.title(f"Daily Change in Confirmed Cases for {county} using complete, processed data")
+    plt.title(f"Daily Change in Confirmed Cases for {county}")
     
     plt.subplot(2, 1, 2)
     plt.plot(county_df['Date'], county_df['Deaths'], label="Daily Change in Deaths", color='blue')
     plt.xlabel("Date")
     plt.ylabel("Deaths Change")
-    plt.title(f"Daily Change in Deaths for {county} using complete, processed data")
+    plt.title(f"Daily Change in Deaths for {county}")
 
-    plt.xticks(rotation=45)
     plt.tight_layout(pad = 5.0)
     return fig
 
@@ -764,7 +762,7 @@ def test_SIR_Model_R0_trajectory(param_country, sim_country):
 
 
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Overview", "R₀ Trajectory", "SIR Model Parameter Comparison", "SIR Model Fit test", "Country Analysis", "Global Insights"])
+page = st.sidebar.radio("Go to", ["Overview", "R₀ Trajectory", "SIR Model Parameter Comparison", "SIR Model Fit test", "Country Analysis", "Global Insights", "Counties Analysis"])
 
 if page in ["Overview", "Country Analysis"]:
     start_date, end_date = st.sidebar.date_input(
@@ -920,3 +918,22 @@ elif page == "Global Insights":
     st.subheader("Continental Death Rates")
     fig_death_rate = Estimated_Death_Rate_by_Continent()
     st.pyplot(fig_death_rate)
+
+elif page == "Counties Analysis":
+    st.title("US Counties Analysis")
+
+    # County selection slider
+    selected_county = st.sidebar.selectbox("Select a US County", usa_county_wise_df['Admin2'].unique())
+
+    # Split the page into two columns
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("Top 5 US Counties by Total Deaths and Confirmed Cases")
+        fig_top5 = Top_5_US_Counties()
+        st.pyplot(fig_top5)
+
+    with col2:
+        st.subheader(f"Figures for {selected_county}")
+        fig_county = plot_figures_counties_complete(selected_county)
+        st.pyplot(fig_county)
