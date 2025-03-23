@@ -19,20 +19,20 @@ df_daywise = pd.read_csv("day_wise.csv", parse_dates=["Date"])
 def plot_figure(df):
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
     
-    axes[0].plot(df["Date"], df["New.cases"], color="blue")
-    axes[0].set_title("New Cases Over Time using day_wise data")
+    axes[0].plot(df["Date"], df["New cases"], color="blue")
+    axes[0].set_title("New Cases Over Time")
     axes[0].set_xlabel("Date")
     axes[0].set_ylabel("New Cases")
     plt.tight_layout(pad=3.0)
 
     axes[1].plot(df["Date"], df["Deaths"], color="red")
-    axes[1].set_title("Deaths Over Time using day_wise data")
+    axes[1].set_title("Deaths Over Time")
     axes[1].set_xlabel("Date")
     axes[1].set_ylabel("Deaths")
     plt.tight_layout(pad=3.0)
 
     axes[2].plot(df["Date"], df["Recovered"], color="green")
-    axes[2].set_title("Recovered Over Time using day_wise data")
+    axes[2].set_title("Recovered Over Time")
     axes[2].set_xlabel("Date")
     axes[2].set_ylabel("Recovered")
     plt.tight_layout(pad=3.0)
@@ -145,7 +145,7 @@ def sir_model_MSE_values(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N):
     
     return mse_S, mse_I, mse_R, mse_D
 
-def plot_mse_comparison(df, parameter_sets, I0, R0, S0, D0, N, scale=1e13):
+def plot_mse_comparison(df, parameter_sets, I0, R0, S0, D0, N, param_set_number=None, scale=1e13):
     """
     For each parameter set in parameter_sets (list of [alpha, beta, gamma, mu]),
     compute the MSE values (for S, I, R, D) using original df and the given initial conditions.
@@ -162,12 +162,15 @@ def plot_mse_comparison(df, parameter_sets, I0, R0, S0, D0, N, scale=1e13):
         mse_results.append([mse_S/scale, mse_I/scale, mse_R/scale, mse_D/scale])
     
     # Create a figure with one subplot per parameter set
-    fig, axes = plt.subplots(1, len(parameter_sets), figsize=(5*len(parameter_sets), 5))
+    fig, axes = plt.subplots(1, len(parameter_sets), figsize=(5 * len(parameter_sets), 5))
     if len(parameter_sets) == 1:
         axes = [axes]
     for i, ax in enumerate(axes):
         ax.bar(compartments, mse_results[i], color=['blue', 'orange', 'green', 'red'])
-        ax.set_title(f"Parameter Set {i+1} MSE")
+        if param_set_number:
+            ax.set_title(f"Parameter Set {param_set_number} MSE")
+        else:
+            ax.set_title(f"Parameter Set {i + 1} MSE")
         ax.set_ylim(0, 3.5)
         ax.set_ylabel("MSE (scaled)")
     fig.tight_layout()
@@ -204,7 +207,7 @@ def graph_sir_model_simulation(df, alpha, beta, gamma, mu, I0, R0, S0, D0, N, pa
     plt.plot(time, D, label="Deceased")
     plt.xlabel("Date")
     plt.ylabel("Number of individuals")
-    plt.title(f"SIR Model with Deaths Simulation using parameterset: {parameterset}")
+    plt.title(f"SIR Model using parameterset: {parameterset}")
     plt.yscale('log')
     plt.legend()
     plt.tight_layout()
@@ -634,7 +637,7 @@ def test_SIR_Model(param_country, sim_country):
     gamma        = params[2]
     mu_series    = params[3]
     
-    # --- Step 2: Get actual epidemic data for sim_country ---
+     # --- Step 2: Get actual epidemic data for sim_country ---
     actual_df = process_country_complete(sim_country).copy()
     # Determine the available number of rows.
     n_actual = len(actual_df)
@@ -646,9 +649,10 @@ def test_SIR_Model(param_country, sim_country):
     # Slice the actual_df so that we have n_steps+1 rows (initial condition plus n_steps steps)
     actual_df = actual_df.iloc[-(n_steps + 1):].reset_index(drop=True)
     t_dates = actual_df["Date"].tolist()
-    
+
     # --- Step 3: Extract initial conditions from sim_country's data (first available day) ---
     init_row = actual_df.iloc[0]
+
     # Assume total population for simulation is taken as the first day's population from worldometer data
     N_sim = worldometer_df[worldometer_df['Country.Region'] == sim_country]['Population'].iloc[0] 
     
@@ -760,7 +764,7 @@ def test_SIR_Model_R0_trajectory(param_country, sim_country):
 
 
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Overview", "SIR Model", "SIR Model Parameter Comparison", "SIR Model Fit test", "Country Analysis", "Global Insights"])
+page = st.sidebar.radio("Go to", ["Overview", "R₀ Trajectory", "SIR Model Parameter Comparison", "SIR Model Fit test", "Country Analysis", "Global Insights"])
 
 start_date, end_date = st.sidebar.date_input("Select Date Range", [df_daywise["Date"].min(), df_daywise["Date"].max()])
 selected_country = st.sidebar.selectbox("Select a country", worldometer_df["Country.Region"].unique())
@@ -784,9 +788,37 @@ if page == "Overview":
         fig = plot_figure_dates(df_daywise, start_date, end_date)
         st.pyplot(fig)
 
-elif page == "SIR Model":
-    st.title("SIR Model for COVID-19 Spread (Country-Specific)")
+elif page == "R₀ Trajectory":
+    st.title("R₀ Trajectory for COVID-19 Spread")
+    st.markdown("""
+    The basic reproduction number (R₀) represents the average number of secondary infections caused by one infected individual in a fully susceptible population.
+    
+    An R₀ value:
+    - Greater than 1 means the disease is spreading.
+    - Equal to 1 means the disease is stable.
+    - Less than 1 means the disease is declining.
 
+    The R₀ trajectory shows how the transmission potential changes over time, often influenced by public health interventions, immunity buildup, and other factors.
+    """)
+
+    # Get the R₀ trajectory data for the selected country
+    R0_traj_df = R0_trajectory_by_country(selected_country)
+
+    # Plot R₀ trajectory
+    st.subheader(f"R₀ Trajectory for {selected_country}")
+    fig_R0 = plt.figure(figsize=(10, 5))
+    plt.plot(R0_traj_df["Date"], R0_traj_df["R0"], label="R₀ Estimate", color="blue")
+    plt.xlabel("Date")
+    plt.ylabel("Estimated R₀")
+    plt.title(f"R₀ Trajectory for {selected_country}")
+    plt.axhline(y=1, color='red', linestyle='--', label='Threshold (R₀ = 1)')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    st.pyplot(fig_R0)
+
+elif page == "SIR Model Parameter Comparison":
+    st.title("SIR Model Parameter Set Comparison")
     st.markdown("""
     The SIR model is used to predict the spread of infectious diseases by categorizing people into:
     - **S (Susceptible):** People who can still get infected.
@@ -799,57 +831,28 @@ elif page == "SIR Model":
     - **β (beta):** Infection rate (how easily the disease spreads).
     - **γ (gamma):** Recovery rate (how quickly people recover).
     - **μ (mu):** Death rate due to infection.
-                
-    We can then use the model to estimate the basic reproduction number R0 given by β(t) / γ
+        
+    In this section, you can select one of the three parameter sets and visualize the SIR model simulation along with the Mean Squared Error (MSE) for that set.
+
+    - **Parameter Set 1:** Using government data (CDC) for the parameters.
+    - **Parameter Set 2:** Calculating the parameters from the data and taking a mean to avoid overfitting.
+    - **Parameter Set 3:** Using advanced techniques such as linear regression to compute parameters.
     """)
 
-    # Ensure "USA" maps to "US" for complete.csv
-    complete_csv_country = "US" if selected_country == "USA" else selected_country
+    # Dropdown menu to select the parameter set
+    parameter_set_choice = st.selectbox("Select Parameter Set", ["Parameter Set 1", "Parameter Set 2", "Parameter Set 3"])
 
-    # Estimate country-specific parameters
-    params = estimate_parameters_by_country(selected_country)
-    alpha_t, beta_t, gamma, mu_t, S_t = params
+    # Mapping dropdown selection to actual parameter set
+    param_index = int(parameter_set_choice[-1]) - 1
+    selected_params = parameter_sets[param_index]
 
-    # Compute R₀ trajectory
-    R0_traj_df = R0_trajectory_by_country(selected_country)
-    R0_estimate = beta_t / gamma
+    # Display the selected parameter set's simulation
+    fig_sim = graph_sir_model_simulation(df_daywise, selected_params[0], selected_params[1], selected_params[2], selected_params[3],
+                                         I0, R0, S0, D0, N, param_index + 1)
+    st.pyplot(fig_sim)
 
-    # Display parameters
-    st.subheader(f"SIR Model for {selected_country}")
-
-    # Display estimated R₀ value
-   # st.metric("Estimated Basic Reproduction Number (R0)", f"{R0_estimate:.2f}")
-
-    # Plot R0 trajectory
-    st.subheader(f"R₀ Trajectory for {selected_country}")
-    fig_R0 = plt.figure(figsize=(10, 5))
-    plt.plot(R0_traj_df["Date"], R0_traj_df["R0"], label="R₀ Estimate", color="blue")
-    plt.xlabel("Date")
-    plt.ylabel("Estimated R₀")
-    plt.title(f"R₀ Trajectory for {selected_country}")
-    plt.legend()
-    plt.tight_layout()
-    st.pyplot(fig_R0)
-
-elif page == "SIR Model Parameter Comparison":
-    st.title("SIR Model Parameter Set Comparison")
-    st.markdown("""
-    In this section, we compare the performance of three different parameter sets by computing the
-    Mean Squared Error (MSE) of the simulated epidemic curves (for Susceptible, Infected/Active, Recovered and Deaths) against the actual data.
-    The barplots below show the scaled MSE values for each parameter set.
-                
-    - **Parameterset 1: Using goverment data (CDC) for the parameters
-    - **Parameterset 2: Calculating the parameters from the data and taking a mean to avoid overfitting
-    - **Parameterset 1: Using advanced techniques such as linear regression to compute parameters 
-                
-    """)
-
-    for i, params in enumerate(parameter_sets, start=1):
-        fig_sim = graph_sir_model_simulation(df_daywise, params[0], params[1], params[2], params[3],
-                                             I0, R0, S0, D0, N, i)
-        st.pyplot(fig_sim)
-    
-    fig_mse = plot_mse_comparison(df_daywise, parameter_sets, I0, R0, S0, D0, N)
+    # Display the MSE comparison for the selected parameter set
+    fig_mse = plot_mse_comparison(df_daywise, [selected_params], I0, R0, S0, D0, N)
     st.pyplot(fig_mse)
 
 elif page == "SIR Model Fit test":
@@ -873,28 +876,26 @@ elif page == "SIR Model Fit test":
 elif page == "Country Analysis":
     st.title(f"COVID-19 Analysis for {selected_country}")
     col1, col2 = st.columns(2)
-    
     with col1:
         st.subheader("Cumulative Totals")
         st.markdown(
-            """
-            This plot displays the cumulative totals of active cases, deaths, and recoveries over time from day_wise data file,
-            normalized by the country's population.
-            """
-        )
+             """
+             This plot displays the cumulative totals of active cases, deaths, and recoveries over time from day_wise data file,
+             normalized by the country's population.
+             """
+         )
         fig1 = plot_totals_for_country(selected_country, start_date, end_date)
         fig1.tight_layout()
         st.pyplot(fig1)
-    
     with col2:
         st.subheader("Complete Data Analysis")
         st.markdown(
-            """
-            This plot shows the cumulative counts from the processed complete dataset.
-            It provides a detailed view of the disease progression using data that has been
-            cleaned and adjusted for missing/duplicate values.
-            """
-        )
+             """
+             This plot shows the cumulative counts from the processed complete dataset.
+             It provides a detailed view of the disease progression using data that has been
+             cleaned and adjusted for missing/duplicate values.
+             """
+         )
         fig2 = plot_figures_country_complete(complete_csv_country, start_date, end_date)
         fig2.tight_layout()
         st.pyplot(fig2)
@@ -913,7 +914,6 @@ elif page == "Global Insights":
     st.subheader("Continental Death Rates")
     fig_death_rate = Estimated_Death_Rate_by_Continent()
     st.pyplot(fig_death_rate)
-
 
 
 
