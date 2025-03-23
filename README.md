@@ -101,6 +101,29 @@ Project Structure
 •	README.md: This file, providing detailed project and usage information.
 
 
+SIR Model Fit Test and Conclusion
+To evaluate the SIR model, we estimated the model parameters using processed and complete COVID-19 data for the Netherlands. We then applied these parameters and the initial conditions from Belgium's dataset to simulate Belgium’s epidemic trajectory. The goal was to isolate the model by selecting two comparable countries—where factors like healthcare capabilities, population density, and COVID-19 policies (e.g., mask mandates, lockdowns, and curfews) are similar.
 
+Test Approach:
+
+Parameter Estimation:
+We computed the time-dependent parameters using the Netherlands’ data, ensuring that our estimation was based on the most complete and processed dataset available.
+
+Simulation:
+Using these estimated parameters, we simulated the epidemic for Belgium starting from its initial conditions. We compared the simulated figures for cumulative deaths, active cases, and recoveries against the actual recorded data for Belgium.
+
+R₀ Trajectory:
+In addition to the above, we compared the basic reproduction number (R₀) trajectories for both countries. A similar R₀ trajectory would indicate that the model captures the epidemic's transmission dynamics well.
+
+Results and Conclusions:
+
+Simulation Accuracy:
+The simulated figures for Belgium did not closely match the actual data. One issue encountered was the presence of zero values in the data. When these zeros are used in parameter calculations, they can lead to division by zero or generate extremely large parameter values—even when adjusted by a small epsilon. Furthermore, because the model's calculation for day t+1 depends on day t, small deviations early on can propagate and magnify over time.
+
+R₀ Trajectory:
+Despite the challenges in accurately simulating the cumulative numbers for deaths, infections, and recoveries, the R₀ trajectory produced by the model showed a closer match between the two countries. This suggests that while the model may have limitations in predicting absolute case numbers over time, it is more reliable for estimating trends in the reproduction number.
+
+Conclusion:
+We conclude that the SIR model, in its current formulation, may not accurately simulate the overall disease figures (Deaths, Infected, and Recovered) for a country. However, it is effective in predicting the R₀ trajectory, which can be a valuable metric for understanding the transmission dynamics of the disease.
 
 
