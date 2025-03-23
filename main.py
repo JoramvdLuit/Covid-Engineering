@@ -574,7 +574,7 @@ def plot_figures_counties_complete(county):
     return fig
 
 def main():
-    # Function that plots the day-wise data
+    # Part 1
     plot_figure(df_daywise)
     plt.show()
 
