@@ -546,7 +546,7 @@ def estimates_country_complete(country):
     beta_t = (df['Active_change'].iloc[1:] / np.maximum(df['Active'].iloc[1:], 1) + mu_t + gamma) / np.maximum(S_t.iloc[1:], eps)
     R0 = beta_t / gamma
 
-    params = [alpha_t, beta_t, gamma, mu_t, S_t]
+    params = [alpha_t, beta_t, gamma, mu_t, S_t, R0]
     return params
 
 def plot_figures_counties_complete(county):
@@ -712,8 +712,61 @@ def test_SIR_Model(param_country, sim_country):
     axes[2].set_xlabel("Date")
     axes[2].set_ylabel("Cumulative Deaths")
     axes[2].legend()
+
+    axes[2].plot(t_dates, actual_df["Deaths"], label="Actual Deaths", marker="o", color="red")
+    axes[2].plot(t_dates, D_sim, label="Simulated Deaths", marker="x", linestyle="--", color="black")
+    axes[2].set_title(f"Deaths Comparison for {param_country} and {sim_country}")
+    axes[2].set_xlabel("Date")
+    axes[2].set_ylabel("Cumulative Deaths")
+    axes[2].legend()
+
+    axes[2].plot(t_dates, actual_df["Deaths"], label="Actual Deaths", marker="o", color="red")
+    axes[2].plot(t_dates, D_sim, label="Simulated Deaths", marker="x", linestyle="--", color="black")
+    axes[2].set_title(f"Deaths Comparison for {param_country} and {sim_country}")
+    axes[2].set_xlabel("Date")
+    axes[2].set_ylabel("Cumulative Deaths")
+    axes[2].legend()
     
     plt.tight_layout(pad = 5.0)
+    return fig
+
+
+def test_SIR_Model_R0_trajectory(param_country, sim_country):
+    """
+    Estimate time-dependent SIR parameters for two countries and plot their R₀ trajectories in a single figure.
+    
+    Parameters:
+    - param_country: The country from which the SIR parameters are estimated.
+    - sim_country: The country for which the R₀ trajectory is compared to.
+    
+    Returns:
+    - A matplotlib figure showing the R₀ trajectories for both countries.
+    """
+    # --- Step 1: Estimate parameters and R₀ for param_country ---
+    params_param = estimates_country_complete(param_country)
+    R0_param = params_param[5]
+    # Retrieve the corresponding dates (skipping the first row due to diff())
+    df_param = process_country_complete(param_country).copy()
+    dates_param = df_param["Date"].iloc[1:].reset_index(drop=True)
+    
+    # --- Step 2: Estimate parameters and R₀ for sim_country ---
+    params_sim = estimates_country_complete(sim_country)
+    R0_sim = params_sim[5]
+    df_sim = process_country_complete(sim_country).copy()
+    dates_sim = df_sim["Date"].iloc[1:].reset_index(drop=True)
+    
+    # --- Step 3: Create the figure with both R₀ trajectories ---
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    ax.plot(dates_param, R0_param, label=f"R₀ for {param_country}", marker="o", color="blue")
+    ax.plot(dates_sim, R0_sim, label=f"R₀ for {sim_country}", marker="x", linestyle="--", color="red")
+    
+    ax.set_title(f"R₀ Trajectory Comparison: {param_country} vs. {sim_country}")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("R₀")
+    ax.legend()
+    plt.tight_layout(pad=5.0)
+    
     return fig
 
 
@@ -814,13 +867,19 @@ elif page == "SIR Model Fit test":
     st.title("SIR Model Fit Test")
     st.markdown("""
     This section estimates SIR model parameters from one country (e.g., the Netherlands) and then uses those parameters 
-    to simulate the epidemic for another country (e.g., Belgium) using the starting values from that country.
-    The simulation outputs the modeled cumulative confirmed, active, and death cases. If the computed results are similar to the actual results,
-    the SIR model proves a fitting model. 
+    to simulate the epidemic for another country that is comparable (e.g., Belgium) using the starting values from that country.
+    The simulation outputs the modeled cumulative confirmed, active, death cases, and R0 trajectory. If the computed results are similar to the actual results,
+    the SIR model proves a fitting model to predict said statistics.
+
+    We conclude the model does not predict figures such as the confirmed cases well. More explained in the readme file.           
     """)
     # Adjust the country names as needed; here we use "Netherlands" for estimation and "Belgium" for simulation.
     fig_sim = test_SIR_Model("Netherlands", "Belgium")
     st.pyplot(fig_sim)
+    st.markdown("""
+    The simulated R0-trajectory is similar enough to that of the actual R0-trajectory to conlude we can use the model for this purpose.         
+    """)
+    st.pyplot(test_SIR_Model_R0_trajectory("Netherlands", "Belgium"))
 
 elif page == "Country Analysis":
     st.title(f"COVID-19 Analysis for {selected_country}")
