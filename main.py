@@ -766,10 +766,15 @@ def test_SIR_Model_R0_trajectory(param_country, sim_country):
 st.sidebar.title("Navigation")
 page = st.sidebar.radio("Go to", ["Overview", "R₀ Trajectory", "SIR Model Parameter Comparison", "SIR Model Fit test", "Country Analysis", "Global Insights"])
 
-start_date, end_date = st.sidebar.date_input("Select Date Range", [df_daywise["Date"].min(), df_daywise["Date"].max()])
-selected_country = st.sidebar.selectbox("Select a country", worldometer_df["Country.Region"].unique())
+if page in ["Overview", "Country Analysis"]:
+    start_date, end_date = st.sidebar.date_input(
+        "Select Date Range",
+        [df_daywise["Date"].min(), df_daywise["Date"].max()]
+    )
 
-complete_csv_country = "US" if selected_country == "USA" else selected_country
+if page in ["R₀ Trajectory", "Country Analysis"]:
+    selected_country = st.sidebar.selectbox("Select a country", worldometer_df["Country.Region"].unique())
+
 
 if page == "Overview":
     st.title("COVID-19 Pandemic Overview")
@@ -874,6 +879,7 @@ elif page == "SIR Model Fit test":
     st.pyplot(test_SIR_Model_R0_trajectory("Netherlands", "Belgium"))
 
 elif page == "Country Analysis":
+    complete_csv_country = "US" if selected_country == "USA" else selected_country
     st.title(f"COVID-19 Analysis for {selected_country}")
     col1, col2 = st.columns(2)
     with col1:
@@ -914,6 +920,3 @@ elif page == "Global Insights":
     st.subheader("Continental Death Rates")
     fig_death_rate = Estimated_Death_Rate_by_Continent()
     st.pyplot(fig_death_rate)
-
-
-
