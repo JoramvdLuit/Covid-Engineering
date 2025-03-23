@@ -631,35 +631,38 @@ def test_SIR_Model(param_country, sim_country):
     params = estimates_country_complete(param_country)
     alpha_series = params[0]
     beta_series  = params[1]
-    gamma    = params[2]
+    gamma        = params[2]
     mu_series    = params[3]
     
     # --- Step 2: Get actual epidemic data for sim_country ---
-    actual_df = process_country_complete(sim_country)
-    actual_df = actual_df.iloc[-len(alpha_series):].reset_index(drop=True)
+    actual_df = process_country_complete(sim_country).copy()
+    # Determine the available number of rows.
+    n_actual = len(actual_df)
+    # Note: estimates_country_complete uses .diff() so its series length is (len(df) - 1)
+    n_alpha = len(alpha_series)
+    # The simulation will run for n_steps days, where initial condition uses one extra row.
+    n_steps = min(n_alpha, n_actual - 1)
+    
+    # Slice the actual_df so that we have n_steps+1 rows (initial condition plus n_steps steps)
+    actual_df = actual_df.iloc[-(n_steps + 1):].reset_index(drop=True)
     t_dates = actual_df["Date"].tolist()
-    print(t_dates[0])
-    n_steps = len(alpha_series)
-
+    
     # --- Step 3: Extract initial conditions from sim_country's data (first available day) ---
     init_row = actual_df.iloc[0]
-
-    # Assume total population for simulation is taken as the first day's cumulative confirmed:
+    # Assume total population for simulation is taken as the first day's population from worldometer data
     N_sim = worldometer_df[worldometer_df['Country.Region'] == sim_country]['Population'].iloc[0] 
     
     # --- Step 4: Run SIR simulation with time-dependent parameters ---
-    I_sim = [init_row["Active"]]   # Here, Active is Infected
+    I_sim = [init_row["Active"]]   # Active is considered as Infected
     R_sim = [init_row["Recovered"]]
     D_sim = [init_row["Deaths"]]
     S_sim = [N_sim - I_sim[0] - R_sim[0] - D_sim[0]]
 
-
-
-    # We'll simulate for (n_steps) days.
-    for t in range(0, n_steps-1):
+    # Simulate for n_steps days.
+    for t in range(n_steps):
         alpha = alpha_series.iloc[t]
-        beta = beta_series.iloc[t]
-        mu = mu_series.iloc[t]
+        beta  = beta_series.iloc[t]
+        mu    = mu_series.iloc[t]
 
         St = S_sim[-1]
         It = I_sim[-1]
@@ -685,7 +688,7 @@ def test_SIR_Model(param_country, sim_country):
     # --- Step 5: Plot simulated vs. actual data ---
     # Compute actual confirmed from actual data (Confirmed = Active + Deaths + Recovered)
     actual_confirmed = actual_df["Active"] + actual_df["Deaths"] + actual_df["Recovered"]
-    sim_confirmed = np.array(I_sim) + np.array(R_sim) + np.array(D_sim)
+    sim_confirmed = I_sim + R_sim + D_sim
     
     fig, axes = plt.subplots(3, 1, figsize=(12, 18))
     
@@ -712,22 +715,8 @@ def test_SIR_Model(param_country, sim_country):
     axes[2].set_xlabel("Date")
     axes[2].set_ylabel("Cumulative Deaths")
     axes[2].legend()
-
-    axes[2].plot(t_dates, actual_df["Deaths"], label="Actual Deaths", marker="o", color="red")
-    axes[2].plot(t_dates, D_sim, label="Simulated Deaths", marker="x", linestyle="--", color="black")
-    axes[2].set_title(f"Deaths Comparison for {param_country} and {sim_country}")
-    axes[2].set_xlabel("Date")
-    axes[2].set_ylabel("Cumulative Deaths")
-    axes[2].legend()
-
-    axes[2].plot(t_dates, actual_df["Deaths"], label="Actual Deaths", marker="o", color="red")
-    axes[2].plot(t_dates, D_sim, label="Simulated Deaths", marker="x", linestyle="--", color="black")
-    axes[2].set_title(f"Deaths Comparison for {param_country} and {sim_country}")
-    axes[2].set_xlabel("Date")
-    axes[2].set_ylabel("Cumulative Deaths")
-    axes[2].legend()
     
-    plt.tight_layout(pad = 5.0)
+    plt.tight_layout(pad=5.0)
     return fig
 
 
@@ -884,12 +873,31 @@ elif page == "SIR Model Fit test":
 elif page == "Country Analysis":
     st.title(f"COVID-19 Analysis for {selected_country}")
     col1, col2 = st.columns(2)
+    
     with col1:
-        fig = plot_totals_for_country(selected_country, start_date, end_date)
-        st.pyplot(fig)
+        st.subheader("Cumulative Totals")
+        st.markdown(
+            """
+            This plot displays the cumulative totals of active cases, deaths, and recoveries over time from day_wise data file,
+            normalized by the country's population.
+            """
+        )
+        fig1 = plot_totals_for_country(selected_country, start_date, end_date)
+        fig1.tight_layout()
+        st.pyplot(fig1)
+    
     with col2:
-        fig = plot_figures_country_complete(complete_csv_country, start_date, end_date)
-        st.pyplot(fig)
+        st.subheader("Complete Data Analysis")
+        st.markdown(
+            """
+            This plot shows the cumulative counts from the processed complete dataset.
+            It provides a detailed view of the disease progression using data that has been
+            cleaned and adjusted for missing/duplicate values.
+            """
+        )
+        fig2 = plot_figures_country_complete(complete_csv_country, start_date, end_date)
+        fig2.tight_layout()
+        st.pyplot(fig2)
 
 elif page == "Global Insights":
     st.title("Global Insights & Visualizations")
